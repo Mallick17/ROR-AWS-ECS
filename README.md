@@ -373,7 +373,9 @@ RAILS_ENV=production bundle exec puma -C config/puma.rb
 - **Application Server (Puma)**: Runs the Rails application, processing dynamic requests and interacting with PostgreSQL. Starts with `bundle exec puma`.
 - **Database Server (PostgreSQL)**: Stores application data, configured with a user and database for production. Accessed via `psql` for setup.
 
-### Interrelation of Components
+
+# Interrelation of Components
+## **Flow**: Client → Nginx → Puma → PostgreSQL/Redis → Puma → Nginx → Client.
 The deployment process is interconnected:
 1. **Nginx** receives HTTP requests from clients.
 2. For static files, Nginx serves them directly from `/home/ubuntu/chat-app/public`.
