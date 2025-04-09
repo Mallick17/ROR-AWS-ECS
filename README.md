@@ -392,6 +392,127 @@ The deployment process is interconnected:
 
 This flow ensures a seamless user experience, with each component playing a critical role.
 
+---
+---
+
+## Step-by-Step Guide: Setting Up Amazon RDS for RoR App on EC2
+
+### Step 1: Launch the EC2 Instance (if not already created)
+1. **Go to EC2 Dashboard** → Instances → **Launch instance**.
+2. Choose Amazon Linux 2 / Ubuntu 22.04.
+3. Instance type: e.g., **t2.micro (free tier eligible)**.
+4. Create a **new security group** (or select existing):
+   - Allow **SSH (port 22)** from your IP.
+   - Allow **HTTP (port 80)** from anywhere.
+   - Leave HTTPS and other ports closed for now.
+
+---
+
+### Step 2: Create a Security Group for RDS
+
+1. Go to **EC2 Dashboard** → **Security Groups** → **Create Security Group**.
+2. Name: `rds-chat-db-sg`
+3. Description: Security group for chat app RDS PostgreSQL.
+4. VPC: Select the default VPC (or the one EC2 is in).
+5. Under **Inbound Rules**, add:
+   - **Type**: PostgreSQL
+   - **Protocol**: TCP
+   - **Port range**: 5432
+   - **Source**: Choose “**Custom**” and select your **EC2 security group** (not IP address!). This ensures only your EC2 can connect to the RDS instance.
+
+6. Click **Create Security Group**.
+
+---
+
+### Step 3: Create the RDS PostgreSQL Instance
+
+1. Go to **RDS Dashboard** → **Create Database**.
+2. Choose:
+   - **Standard create**
+   - **Engine**: PostgreSQL
+   - **Version**: Select a supported version (e.g., 14.x)
+3. Settings:
+   - DB instance identifier: `chat-app-db`
+   - Master username: `myuser`
+   - Master password: `mypassword` (store securely)
+4. Instance class: `db.t3.micro` (free tier if available)
+5. Storage: Leave default (or increase as needed).
+6. Connectivity:
+   - **VPC**: Same VPC as EC2
+   - **Public access**: **No** (for best security; or Yes if you want to test with pgAdmin later)
+   - **VPC security group**: **Select existing**, and choose `rds-chat-db-sg`
+7. Database options:
+   - Initial DB name: `chat_app_production`
+
+8. Click **Create database**
+
+RDS will take a few minutes to initialize.
+
+---
+
+### Step 4: Modify EC2 Security Group (if needed)
+
+Modify EC2 Security Group to Allow Outbound PostgreSQL
+By default, EC2 security groups allow all outbound traffic. If you've restricted outbound, make sure to allow this:
+
+Go to ec2-sg → Outbound Rules → Ensure:
+
+Type: PostgreSQL
+
+Port: 5432
+
+Destination: rds-sg (or just All traffic for development)
+
+---
+
+### Step 5: Connect to RDS from EC2 (Test)
+
+SSH into EC2:
+
+```bash
+psql -h <your-rds-endpoint> -U myuser -d chat_app_production -W
+```
+
+Replace `<your-rds-endpoint>` with something like:
+```
+chat-app-db.xxxxxxxxxxx.us-east-1.rds.amazonaws.com
+```
+
+If it connects, you're good!
+
+---
+
+### Step 6: Update Rails `.env` File
+
+On your EC2, edit `.env` inside your Rails app:
+
+```bash
+vi /home/ubuntu/chat-app/.env
+```
+
+Update the `DATABASE_URL`:
+
+```env
+DATABASE_URL=postgres://myuser:mypassword@<your-rds-endpoint>:5432/chat_app_production
+```
+
+---
+
+### Step 7: Finalize Rails Configuration
+
+```bash
+cd /home/ubuntu/chat-app/
+bundle install
+RAILS_ENV=production rails db:migrate
+rails assets:precompile RAILS_ENV=production
+```
+
+ **Done!** We now have:
+- RDS PostgreSQL securely set up.
+- EC2 and RDS allowed to communicate.
+- Your Rails app ready to use a remote, scalable database.
+
+---
 ## Key Citations
 - [Guide to Deploy a Ruby on Rails App Using AWS EC2](https://rajputlakhveer.medium.com/guide-to-deploy-a-ruby-on-rails-app-using-aws-ec2-c067c2c4e414)
 - [Ruby Version Manager Installation Guide](https://rvm.io/rvm/install)
