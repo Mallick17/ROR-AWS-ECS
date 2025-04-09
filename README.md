@@ -7,7 +7,13 @@ This guide details the deployment of a **Real-Time Chat Application** built with
 - Installed with `rvm install 3.2.2`, allowing precise version control across environments.
 
 ## Deployment Guide for Ruby on Rails Application
-This section provides an in-depth exploration of deploying a Ruby on Rails (RoR) application on an Ubuntu server. It covers every step, explains the roles of the webserver (Nginx), application server (Puma), and database server (PostgreSQL), and details how each component interrelates to ensure a successful deployment.
+This section provides an in-depth exploration of deploying a Ruby on Rails (RoR) application on an Ubuntu server. It covers every step, and details how each component interrelates to ensure a successful deployment.
+| Component        | Role                                    |
+|------------------|------------------------------------------|
+| Nginx            | Web server, handles HTTP requests        |
+| Puma             | Application server for Rails             |
+| PostgreSQL       | Database server                          |
+| Redis (optional) | Caching, ActionCable Pub/Sub backend     |
 
 ### Introduction
 Deploying a Ruby on Rails application involves setting up the necessary infrastructure, installing dependencies, configuring servers, and ensuring the application runs smoothly in a production environment. The process outlined here uses Nginx as the webserver, Puma as the application server, and PostgreSQL as the database server. 
