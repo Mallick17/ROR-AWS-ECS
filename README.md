@@ -337,7 +337,6 @@ services:
 
 </details>
 
----
 
 <details>
   <summary>Click to view the explained docker-compose.yml</summary>
