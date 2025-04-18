@@ -13,7 +13,7 @@ Deploying a Ruby on Rails (RoR) application using Docker and Docker Compose invo
 
 ---
 
-## 🗂 Step 1: Project Structure
+## 🗂 Project Structure
 
 Make sure your Rails app folder looks like this:
 
@@ -33,7 +33,150 @@ chat-app/
 
 ---
 
-## ⚙️ Step 2: Create `Dockerfile`
+## Step 1: Update Package Index and Install Prerequisites
+[Set up Docker & Docker-Compose Setup on Ubuntu 22.04 LTS](https://github.com/Mallick17/Docker/tree/Docekr_Installation#docker--docker-compose-setup-on-ubuntu-2204-lts)
+
+<details>
+  <summary>Or Follow the steps below</summary>
+
+### Step 1: Update Package Index and Install Prerequisites
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+```
+
+**Why?**  
+`apt-get update`: Ensures the latest package versions are available.  
+`apt-get install`: Installs `ca-certificates` (for HTTPS) and `curl` (for downloading files).
+
+---
+
+### Step 2: Set Up Docker's GPG Key
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+```
+
+**Why?**  
+Creates a directory for the GPG key, downloads Docker’s official key, and sets read permissions for package verification.
+
+---
+
+### Step 3: Add Docker's Repository
+
+```bash
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+$(. /etc/os-release && echo \"${UBUNTU_CODENAME:-$VERSION_CODENAME}\") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
+
+**Why?**  
+Adds Docker’s repository to the system’s package sources, specifying the architecture and Ubuntu version.
+
+---
+
+### Step 4: Install Docker and Docker Compose
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+```
+
+**Why?**  
+Installs Docker components and the Docker Compose binary (version 2.20.2) for orchestrating containers.
+
+---
+
+### Step 5: Verify Installation
+
+```bash
+docker -v
+docker-compose -v
+```
+
+**Why?**  
+Displays the versions of Docker and Docker Compose to verify successful installation.
+
+---
+  
+</details>
+---
+
+### Step 2: Clone the Repository
+
+```bash
+git clone https://github.com/Mallick17/Real-Time_Ruby_on_Rails_Chat_App_Deployment.git
+cd chat-app/
+```
+
+**Why?**  
+- `git clone ...`: Clones the repository containing the RoR chat application to the current directory.
+- `cd chat-app/`: Navigates into the cloned repository directory, where the application files (e.g., Dockerfile, docker-compose.yml) are located.
+
+---
+
+### 🔐 Step 3: Configure or Edit `.env` File
+The `.env` file contains environment variables that configure the RoR application and are used by Docker Compose. 
+
+```bash
+vi .env
+```
+
+**Why?**  
+- Configures variables like database credentials. Example `.env`:
+
+<details>
+  <summary>Click to view .env file</summary>
+
+
+ubuntu@ip-172-31-44-76:~/chat-app$ cat .env
+```env
+# **RAILS_ENV=production**
+## Set the Rails environment to production,
+## affecting how the app behaves,
+## such as enabling caching and detailed error reporting.
+RAILS_ENV=production
+
+# Database connection details for your RDS
+## Explanation: These variables hold the credentials and connection details for a PostgreSQL database hosted on AWS RDS.
+## They are used to construct the `DATABASE_URL` in `docker-compose.yml`.
+DB_USER=myuser
+DB_PASSWORD=mypassword
+DB_HOST=chat-app.c342ea4cs6ny.ap-south-1.rds.amazonaws.com
+DB_PORT=5432
+DB_NAME=chat-app
+
+# Redis config
+## Specifies the Redis connection URL, pointing to the `redis` service on port 6379,
+## database 0. This is redundant with the `environment` in `docker-compose.yml`,
+## but ensures consistency.
+REDIS_URL=redis://redis:6379/0
+
+# Security Keys
+## These are secret keys used by Rails for decrypting credentials (`RAILS_MASTER_KEY`)
+## and cryptographic purposes like signing cookies (`SECRET_KEY_BASE`).
+## They must be kept secure and not committed to version control.
+RAILS_MASTER_KEY=c3ca922688d4bf22ac7fe38430dd8849
+SECRET_KEY_BASE=600f21de02355f788c759ff862a2cb22ba84ccbf072487992f4c2c49ae260f87c7593a1f5f6cf2e45457c76994779a8b30014ee9597e35a2818ca91e33bb7233
+
+```
+
+</details>
+
+
+---
+
+## ⚙️ Step 4: Create `Dockerfile`
+The Dockerfile specifies the steps to create the application’s Docker image. A typical Dockerfile for a RoR application might look like this which is provided below: 
+- Edit the Dockerfile to define how the application container is built.
+
+```bash
+vi Dockerfile
+```
 
 <details>
   <summary>Click to view Dockerfile</summary>
@@ -135,8 +278,28 @@ CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
 
 ---
 
-## 🧱 Step 3: Create `docker-compose.yml`
+## 🧱 Step 5: Create `docker-compose.yml`
 The `docker-compose.yml` file defines and orchestrates the services needed for the application, ensuring they communicate and start in the correct order. It uses version 3.8 of the Compose file format for modern features.
+
+```bash
+vi docker-compose.yml
+```
+### Explanation of key sections:
+- version: '3.8': Specifies the Docker Compose file format.
+- services.web: Defines the Rails application service.
+- build: .: Builds the image using the Dockerfile in the current directory.
+- command: Removes any stale server PID and starts the Rails server.
+- volumes: Mounts the local directory to /app in the container for code synchronization.
+- ports: Maps port 3000 on the host to 3000 in the container.
+- depends_on: Ensures the database starts before the web service.
+- environment: Sets the Rails environment to production.
+
+- services.db: Defines the PostgreSQL database service.
+- image: postgres:14: Uses the official PostgreSQL 14 image.
+- volumes: Persists database data using a named volume.
+- environment: Configures database credentials and name.
+
+- volumes: Defines a named volume (postgres_data) for persistent storage.
 
 <details>
   <summary>Click to view docker-compose.yml</summary>
@@ -174,7 +337,7 @@ services:
 
 </details>
 
------------------------------------------------------------------------------------
+---
 
 <details>
   <summary>Click to view the explained docker-compose.yml</summary>
@@ -224,50 +387,8 @@ services:
 
 ---
 
-## 🔐 Step 4: Create or Edit `.env` File
-The `.env` file contains environment variables that configure the RoR application and are used by Docker Compose. 
 
-<details>
-  <summary>Click to view .env file</summary>
-
-
-ubuntu@ip-172-31-44-76:~/chat-app$ cat .env
-```env
-# **RAILS_ENV=production**
-## Set the Rails environment to production,
-## affecting how the app behaves,
-## such as enabling caching and detailed error reporting.
-RAILS_ENV=production
-
-# Database connection details for your RDS
-## Explanation: These variables hold the credentials and connection details for a PostgreSQL database hosted on AWS RDS.
-## They are used to construct the `DATABASE_URL` in `docker-compose.yml`.
-DB_USER=myuser
-DB_PASSWORD=mypassword
-DB_HOST=chat-app.c342ea4cs6ny.ap-south-1.rds.amazonaws.com
-DB_PORT=5432
-DB_NAME=chat-app
-
-# Redis config
-## Specifies the Redis connection URL, pointing to the `redis` service on port 6379,
-## database 0. This is redundant with the `environment` in `docker-compose.yml`,
-## but ensures consistency.
-REDIS_URL=redis://redis:6379/0
-
-# Security Keys
-## These are secret keys used by Rails for decrypting credentials (`RAILS_MASTER_KEY`)
-## and cryptographic purposes like signing cookies (`SECRET_KEY_BASE`).
-## They must be kept secure and not committed to version control.
-RAILS_MASTER_KEY=c3ca922688d4bf22ac7fe38430dd8849
-SECRET_KEY_BASE=600f21de02355f788c759ff862a2cb22ba84ccbf072487992f4c2c49ae260f87c7593a1f5f6cf2e45457c76994779a8b30014ee9597e35a2818ca91e33bb7233
-
-```
-
-</details>
-
----
-
-## ⚙️ Step 5: Configure `config/database.yml`
+## ⚙️ Step 6: Configure `config/database.yml`
 
 <details>
   <summary>Click to view database.yml file</summary>
@@ -386,4 +507,123 @@ tmp/*
 
 ---
 
-## 🧱 Step 6: Build and Run Containers
+
+
+---
+
+## 🧱 Step 7: Build and Run Containers
+```bash
+sudo docker-compose up --build -d
+```
+
+**Why?**  
+- `sudo docker-compose up`: Starts the services defined in docker-compose.yml.
+- `--build`: Forces Docker to rebuild the images, ensuring any changes in the Dockerfile or application code are applied.
+- `-d`: Runs the containers in detached mode (in the background).
+- This command builds the web service image, pulls the PostgreSQL image, and starts both containers.
+
+---
+
+### Step 8: Verify Containers
+
+```bash
+sudo docker ps
+```
+
+**Why?**  
+- `docker ps`: Lists running containers, showing their IDs, names, ports, and status. If run without sudo and permission is denied, use sudo docker ps.
+- Expected output includes the web and db services, with ports like `0.0.0.0:3000->3000/tcp` for the web service.
+
+---
+
+### Step 9: Access Web Container
+
+```bash
+sudo docker-compose exec web bash
+```
+
+**Why?**  
+- Provides a shell to run commands inside the container.
+- `sudo docker-compose exec web bash`: Opens a bash shell inside the running web container, allowing you to run commands like asset precompilation or database migrations.
+- This is necessary for tasks that must be executed within the container’s environment.
+
+---
+
+### Step 10: Precompile Assets
+Inside the web container, precompile Rails assets for production.
+
+```bash
+RAILS_ENV=production bundle exec rake assets:precompile
+```
+
+**Why?**  
+- Compiles CSS and JavaScript for optimized serving in production.
+- `RAILS_ENV=production`: Sets the environment to production, ensuring assets are optimized.
+- `bundle exec rake assets:precompile`: Compiles assets (e.g., CSS, JavaScript) into public/assets, which are served statically in production. This step is critical for performance and compatibility.
+
+---
+
+### Step 11: Set Up Database
+Create, migrate, and seed the database inside the web container.
+
+```bash
+bundle exec rails db:create db:migrate db:seed
+```
+
+**Why?**  
+- Initializes the database, applies schema migrations, and seeds initial data.
+- `bundle exec rails db:create`: Creates the database specified in `database.yml` (e.g., chat_app).
+- `db:migrate`: Applies database migrations to set up the schema.
+- `db:seed`: Populates the database with initial data (if db/seeds.rb exists).
+- These commands ensure the database is ready for the application.
+
+---
+
+### Step 12: Monitor Logs
+Check the application logs to verify functionality or debug issues.
+
+```bash
+cd log/
+cat production.log
+```
+
+**Why?**  
+- Displays application activity to verify functionality or diagnose issues.
+- `cd log/`: Navigates to the directory containing log files.
+- `cat production.log`: Displays the contents of the production log, which records application activity (e.g., requests, errors). This helps verify that the application is running correctly.
+
+---
+
+## Verifying the Deployment
+
+- **Access the App**: Visit `http://<server-ip>:3000` in a browser.
+- **Check Containers**: Run `sudo docker ps` to verify services.
+- **View Logs**:  
+  ```bash
+  sudo docker-compose logs web
+  cat log/production.log
+  ```
+
+---
+
+## Troubleshooting
+
+- **Permission Issues**:  
+  Add user to Docker group:  
+  ```bash
+  sudo usermod -aG docker $USER
+  ```
+
+- **Database Errors**:  
+  Verify `DATABASE_URL` matches `docker-compose.yml`.
+
+- **Asset Issues**:  
+  Confirm `assets:precompile` succeeded (check `public/assets`).
+
+- **Port Conflicts**:  
+  Check port 3000:  
+  ```bash
+  sudo netstat -tuln | grep 3000
+  ```
+
+---
