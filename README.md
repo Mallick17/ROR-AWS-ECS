@@ -358,8 +358,8 @@ test:
 production:
   <<: *default
   url: <%= ENV["DATABASE_URL"] %>
-  database: chat-app
-  username: myuser
+  database: chat-app      ## add database name given in AWS RDS
+  username: myuser        ## add username given in DB AWS RDS
   password: <%= ENV["CHAT_APP_DATABASE_PASSWORD"] %>
   pool: 5
 ```
