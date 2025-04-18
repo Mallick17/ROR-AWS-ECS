@@ -622,3 +622,916 @@ cat production.log
   ```
 
 ---
+
+## Errors Faced while creating DOcker Images
+<details>
+  <summary>Click to view all the errors</summary>
+
+
+1.The error is clear:
+
+❌ Missing secret_key_base for 'production' environment
+
+This happens because during Docker build time, Rails is trying to precompile assets in production mode, but the necessary secret (SECRET_KEY_BASE or RAILS_MASTER_KEY) isn’t available in the environment inside the Docker build.
+-----------------------------------------------------
+2. Ah, I see what’s happening — the error:
+
+cpp
+Copy
+Edit
+URI::InvalidURIError: bad URI(is not URI?): DATABASE_URL=postgres://myuser:mypassword@chat-app.c342ea4cs6ny.ap-south-1.rds.amazonaws.com:5432/chat-app
+means your Rails app is trying to parse the whole string DATABASE_URL=... as a URI, instead of just the actual URL value.
+
+That usually happens when the .env file contains quotes or spaces or is malformed. Let’s fix that.
+-----------------------------------------------------
+3. Nice! Your Rails app is running inside the Docker container and it’s successfully **precompiling and writing the assets**. That whole chunk of logs shows the asset pipeline doing its thing—generating all the necessary `.js`, `.css`, and image files for production mode.
+
+The next thing to check is:
+
+1. **Is the Puma server running?**  
+   After the assets are compiled, Puma (or whichever server your app is configured to use) should start. Look for a line that says something like:
+   ```
+   * Listening on tcp://0.0.0.0:3000
+   ```
+   or
+   ```
+   [Puma starting in production environment...]
+   ```
+
+2. **Can you access the app in your browser?**  
+   Open `http://localhost:3000` in your browser (or `http://<your-docker-host>:3000` if you’re not on localhost). Do you see your app running?
+
+---
+
+If nothing is loading or you’re unsure if Puma actually started, it could be a case where the `CMD` or `ENTRYPOINT` in your Dockerfile is not launching the server properly.
+
+Let’s check that by doing either:
+
+```bash
+docker logs <container-id>
+```
+
+or if it exited:
+
+```bash
+docker ps -a
+```
+
+Let me know if it says the server is listening or if it exited with an error—we’ll troubleshoot from there.
+
+-----------------------------------------------------
+4. You're super close to getting this running! Here's what's going on and how to fix it:
+
+---
+
+### 🔥 Problem Summary
+
+1. **Puma Error:**  
+   ```
+   No such file or directory @ rb_sysopen - tmp/pids/server.pid
+   ```
+   Puma is trying to write its PID file to `tmp/pids/server.pid`, but that directory doesn't exist in your container.
+
+2. **No Running Container:**  
+   ```
+   sudo docker ps
+   ```
+   Output is empty — meaning your container started but then crashed (because of the error above).
+
+---
+
+### ✅ Solution
+
+#### 1. **Ensure `tmp/pids` directory exists in your app**
+This is the root of the crash. Puma can't write the PID file if the directory isn't there.
+
+**Fix in your Dockerfile or `entrypoint.sh` (whichever you use):**
+
+```bash
+RUN mkdir -p tmp/pids
+```
+
+OR add it in your `Dockerfile` before starting Puma:
+
+```Dockerfile
+RUN mkdir -p /app/tmp/pids
+```
+
+If you're using a `docker-compose.yml`, you can also add a command like:
+
+```yaml
+command: bash -c "mkdir -p tmp/pids && bundle exec puma -C config/puma.rb"
+```
+
+---
+
+#### 2. **Rebuild and Restart Your Container**
+Once the fix is added:
+
+```bash
+sudo docker-compose down
+sudo docker-compose up --build
+```
+
+---
+
+#### 3. **Docker Permission Fix (optional for quality-of-life)**  
+You're getting:
+
+```
+permission denied while trying to connect to the Docker daemon socket
+```
+
+To fix that permanently (instead of always using `sudo`), run:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+Then **logout and log back in** (or `exec su -l $USER`) to apply the group change.
+
+---
+
+Want me to help verify your `Dockerfile` or `docker-compose.yml` and suggest tweaks? Just paste them here.
+
+---------------------------------------------------------------
+5. Perfect — let’s get your Rails app running in Docker with a fixed and production-ready setup. Below is an updated `Dockerfile`, a working `docker-compose.yml`, and **step-by-step instructions** to get your app running.
+
+---
+
+## ✅ UPDATED `Dockerfile`
+
+Here’s a safe and efficient `Dockerfile` for production:
+
+```Dockerfile
+# Dockerfile
+
+FROM ruby:3.2.2
+
+# Set working directory
+WORKDIR /app
+
+# Install packages
+RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs curl
+
+# Install Yarn
+RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+  && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
+  && apt-get update && apt-get install -y yarn
+
+# Install bundler
+RUN gem install bundler
+
+# Copy Gemfiles and install dependencies
+COPY Gemfile* ./
+RUN bundle install
+
+# Copy rest of the application
+COPY . .
+
+# Ensure tmp directories exist
+RUN mkdir -p tmp/pids tmp/cache tmp/sockets log
+
+# Precompile assets (optional for production)
+RUN bundle exec rake assets:precompile
+
+# Expose the app port
+EXPOSE 3000
+
+# Start the app with Puma
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
+```
+
+---
+
+## ✅ `docker-compose.yml`
+
+For local dev or basic deployment (non-Kubernetes), use:
+
+```yaml
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec puma -C config/puma.rb"
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgres://postgres:password@db:5432/chat_app_production
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chat_app_production
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
+```
+
+---
+
+## ✅ Step-by-Step Instructions
+
+> Be sure to run these from inside your `chat-app` directory.
+
+### 🔧 1. Fix Puma issue
+
+Ensure `tmp/pids/` is created in the Docker build. It’s handled in the Dockerfile above. You don't need to manually do anything if you're using the updated file.
+
+---
+
+### 🛠️ 2. Build and Run Docker Compose
+
+```bash
+sudo docker-compose down        # Stop any old containers
+sudo docker-compose up --build  # Rebuild everything clean
+```
+
+---
+
+### 🚀 3. Check If It's Running
+
+Open your browser and visit:
+
+```
+http://<EC2_PUBLIC_IP>:3000
+```
+
+(Use `curl ifconfig.me` or check your EC2 dashboard for the public IP)
+
+---
+
+### 🐘 4. (Optional) Run Database Migrations
+
+Inside the running container:
+
+```bash
+sudo docker-compose exec web bash
+# Inside container:
+bundle exec rails db:create db:migrate db:seed
+```
+
+---
+
+### 🧹 5. Optional: Fix Docker Permission
+
+Run this once on your EC2 to avoid needing `sudo` every time:
+
+```bash
+sudo usermod -aG docker $USER
+exec su -l $USER  # or logout/login
+```
+
+---
+
+Would you like me to also help convert this to your `docker-compose.prod.yml` for production?
+
+-----------------------------------------------------------------------------------------
+6. Ah got it — since your Rails app is using **Amazon RDS for PostgreSQL**, we don’t want to use the `db` service in Docker Compose at all. Instead, you’ll configure the connection directly to your RDS instance.
+
+Here’s how to modify the setup accordingly:
+
+---
+
+## ✅ Updated `docker-compose.yml` (for RDS)
+
+```yaml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec puma -C config/puma.rb"
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgres://<username>:<password>@<rds-endpoint>:5432/<dbname>
+```
+
+Replace:
+
+- `<username>` – your RDS DB username
+- `<password>` – your RDS DB password
+- `<rds-endpoint>` – something like `your-db.xxxxxx.us-east-1.rds.amazonaws.com`
+- `<dbname>` – your production database name
+
+👉 **No `db` service needed**, since RDS is external.
+
+---
+
+## ✅ Step-by-Step Instructions (RDS Version)
+
+### 1. 👷 Update `.env.production` or use `.env`
+
+To avoid hardcoding credentials, add an `.env` file:
+
+```env
+DATABASE_URL=postgres://youruser:yourpassword@your-rds-endpoint.amazonaws.com:5432/yourdbname
+RAILS_ENV=production
+```
+
+Then in `docker-compose.yml`, load it:
+
+```yaml
+    env_file:
+      - .env
+```
+
+---
+
+### 2. 🛠️ Build & Run with Compose
+
+```bash
+sudo docker-compose down
+sudo docker-compose up --build
+```
+
+---
+
+### 3. 🚀 Migrate the RDS DB
+
+```bash
+sudo docker-compose exec web bash
+# Then inside the container:
+bundle exec rails db:migrate db:seed
+```
+
+---
+
+### 4. 📡 Check App Is Running
+
+```bash
+curl http://<EC2_PUBLIC_IP>:3000
+```
+
+Or hit it in the browser.
+
+---
+
+Would you like me to update your `docker-compose.prod.yml` too for best practices? Or help you set up secrets and env securely for EC2 production?
+
++------------------------------------------------------------------
+7.Here’s a complete and clean **`docker-compose.yml`** for your production Rails app using **Amazon RDS for PostgreSQL**:
+
+---
+
+### ✅ `docker-compose.yml` (Production + RDS)
+
+```yaml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    image: chat-app:latest
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec puma -C config/puma.rb"
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      RAILS_ENV: production
+    depends_on: []
+    restart: always
+```
+
+---
+
+### ✅ Example `.env` file (Do **not** commit this to Git)
+
+```env
+RAILS_ENV=production
+DATABASE_URL=postgres://youruser:yourpassword@your-rds-endpoint.amazonaws.com:5432/yourdbname
+SECRET_KEY_BASE=your-secret-key-base
+```
+
+You can generate `SECRET_KEY_BASE` like this:
+
+```bash
+rails secret
+```
+
+---
+
+### ✅ Dockerfile (just confirming — make sure it looks like this)
+
+```dockerfile
+FROM ruby:3.2.2
+
+WORKDIR /app
+
+COPY Gemfile Gemfile.lock ./
+RUN gem install bundler && bundle install --without development test
+
+COPY . .
+
+RUN bundle exec rake assets:precompile
+
+EXPOSE 3000
+
+CMD ["bash", "-c", "rm -f tmp/pids/server.pid && bundle exec puma -C config/puma.rb"]
+```
+
+---
+
+### ✅ Next Steps to Run
+
+1. **Build & Start the container**
+   ```bash
+   sudo docker-compose up --build -d
+   ```
+
+2. **Run DB Migrations**
+   ```bash
+   sudo docker-compose exec web bash
+   # inside container:
+   bundle exec rails db:migrate db:seed
+   ```
+
+3. **Visit your app**
+   - `http://<EC2_PUBLIC_IP>:3000`
+
+---
+
+Want to auto-start this on reboot with systemd, or run Nginx as a reverse proxy on port 80 next?
+
+-----------------------------------------------------------------------------------------
+8. That `favicon.ico` error is completely harmless and very common — browsers automatically request `/favicon.ico`, and if your app doesn’t have that route or file, Rails throws a `RoutingError`. But it doesn’t break anything.
+
+---
+
+### ✅ Here's What You Can Do to Fix It (Optional)
+
+#### Option 1: Add a favicon
+
+Just place a `favicon.ico` file inside your app’s `public/` directory. Rails will serve it statically.
+
+```bash
+# Example: download and move a favicon
+wget https://www.google.com/favicon.ico -O public/favicon.ico
+```
+
+Or create your own favicon and place it in `public/favicon.ico`.
+
+---
+
+#### Option 2: Ignore the error
+
+If you don’t care about the icon (e.g. for admin apps or APIs), you can leave it alone. The error only appears in logs and doesn’t affect app behavior.
+
+---
+
+Let me know if you want help customizing your favicon or adding one dynamically with a Rails helper. Also — do you want help setting up Nginx as a reverse proxy on EC2 to serve your app via `http://yourdomain.com` on port 80 or 443?
+
+----------------------------------------------------------------------------------------
+9. Awesome — setting up **Nginx as a reverse proxy** is a great move for production Rails apps. It’ll listen on port 80 (or 443 for HTTPS) and forward requests to your Rails app running on a Docker container (usually on port 3000). Here's a step-by-step guide tailored for your setup.
+
+---
+
+### ✅ **Step-by-Step: Setup Nginx as a Reverse Proxy for Rails (Docker)**
+
+#### **1. Install Nginx (on your EC2 instance)**
+
+```bash
+sudo apt update
+sudo apt install nginx -y
+```
+
+---
+
+#### **2. Configure a New Nginx Site**
+
+Create a new config file for your app:
+
+```bash
+sudo nano /etc/nginx/sites-available/chat-app
+```
+
+Paste this config:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;  # Replace with your domain or public IP
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;  # Rails app running in Docker on port 3000
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /favicon.ico {
+        access_log off;
+        log_not_found off;
+    }
+
+    error_page 404 /404.html;
+    error_page 500 502 503 504 /500.html;
+}
+```
+
+---
+
+#### **3. Enable the Site**
+
+```bash
+sudo ln -s /etc/nginx/sites-available/chat-app /etc/nginx/sites-enabled/
+```
+
+Optional: Remove the default config if needed:
+
+```bash
+sudo rm /etc/nginx/sites-enabled/default
+```
+
+---
+
+#### **4. Test and Restart Nginx**
+
+```bash
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+---
+
+#### **5. Allow Port 80 (if not already allowed)**
+
+If you’re using EC2, make sure **port 80 is open** in your **Security Group** settings.
+
+---
+
+### ✅ Bonus: Use Your Domain
+
+If you're using a domain, point your **DNS A record** to the EC2 public IP address. It can take a few minutes to propagate.
+
+---
+
+### ✅ Optional: Enable HTTPS with Let's Encrypt
+
+Want HTTPS? I can walk you through adding a free SSL certificate using **Certbot** — just say the word!
+
+---
+
+Would you like to set up SSL next or test your app now over HTTP first?
+
+-----------------------------------------------------------------------------------
+10. Alright — the error you're seeing means that Rails is trying to **migrate and seed the database**, but the database named `chat-app` **doesn't exist yet** in your **RDS instance**. You're almost there!
+
+Let me guide you step-by-step to fix this:
+
+---
+
+### ✅ **Fix: Create the Database in RDS**
+
+Since the app connects to an RDS PostgreSQL instance, and it says:
+
+```
+FATAL:  database "chat-app" does not exist
+```
+
+You simply need to **create the database manually** or via Rails.
+
+---
+
+### 🛠 Option 1: Use Rails to create the database
+
+If the RDS user (in your `config/database.yml`) has permission to create a database:
+
+```bash
+bundle exec rails db:create db:migrate db:seed
+```
+
+But most RDS setups **don’t allow creating a new database from the app**, so you’ll likely need to do:
+
+---
+
+### 🛠 Option 2: Create the Database Manually in RDS
+
+1. **Connect to your RDS instance via `psql`:**
+
+```bash
+psql -h <your-rds-endpoint> -U <username> -d postgres
+```
+
+Replace:
+- `<your-rds-endpoint>` = your actual RDS hostname
+- `<username>` = your master username
+
+Example:
+
+```bash
+psql -h mydb.abc123xyz.us-east-1.rds.amazonaws.com -U mydbuser -d postgres
+```
+
+You'll be prompted for your password.
+
+---
+
+2. **Create the database:**
+
+```sql
+CREATE DATABASE "chat-app";
+```
+
+Note: Use **double quotes** if the name includes a dash (`-`), otherwise Postgres thinks it's two words.
+
+---
+
+3. **Exit and run migrations from Docker:**
+
+```bash
+docker exec -it <container_id_or_name> bash
+bundle exec rails db:migrate db:seed
+```
+
+---
+
+### ✅ Bonus Tip: Rename Database to Avoid Dashes (Recommended)
+
+PostgreSQL doesn't love hyphens (`-`) in database names — Rails will treat it like `"chat-app"` (quoted string). If you can, rename it in `database.yml` to something like:
+
+```yaml
+database: chat_app
+```
+
+Then create that database instead:
+
+```sql
+CREATE DATABASE chat_app;
+```
+
+And update the DB on RDS accordingly.
+
+---
+
+Let me know your database name preference (keep `chat-app` or switch to `chat_app`), and I’ll adjust the `database.yml` and walk you through it cleanly.
+
+------------------------------------------------------------------------------------------
+11. Yes — that `REDIS_URL` value is likely what's causing the **ArgumentError**, because it's **not in the correct format**.
+
+---
+
+### ✅ Correct Format for `REDIS_URL`
+
+It should be a **valid URI**, not just a hostname and port. The correct format is:
+
+```env
+REDIS_URL=redis://localhost:6379/0
+```
+
+Or if you're using Docker and Redis is running as a **container service**, then you’d use the **service name** from `docker-compose.yml`, like:
+
+```env
+REDIS_URL=redis://redis:6379/0
+```
+
+> Replace `redis` with whatever the Redis service is named in your `docker-compose.yml`.
+
+---
+
+### 🔍 TL;DR — Fix `.env`
+
+Update your `.env` to:
+
+```env
+REDIS_URL=redis://localhost:6379/0
+```
+
+Or (Docker example):
+
+```env
+REDIS_URL=redis://redis:6379/0
+```
+
+Then restart your Rails app container so it picks up the new `.env` values:
+
+```bash
+docker-compose down
+docker-compose up --build -d
+```
+
+Let me know if you want me to inspect your `docker-compose.yml` to make sure Redis is set up correctly too.
+
+------------------------------------------------------------------------------------------
+12. Your Rails app is throwing this error when attempting to run `MessageBroadcastJob`:
+
+```
+Redis::CannotConnectError (Error connecting to Redis on localhost:6379 (Errno::ECONNREFUSED))
+```
+
+### ⚠️ Root Cause:
+The job is trying to publish to Redis (used by ActionCable) but Redis is **not running** or **not reachable** at `localhost:6379` inside your container.
+
+---
+
+### ✅ Solution
+
+Since you’re using **Docker**, here's how to get Redis working:
+
+---
+
+### 1. **Add Redis service to your Docker Compose file**
+
+Update your `docker-compose.yml` to include Redis:
+
+```yaml
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379/1
+
+  db:
+    image: postgres:13
+    ...
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+```
+
+> Note the `REDIS_URL` uses `redis://redis:6379/1`, where `redis` is the service name.
+
+---
+
+### 2. **Update `cable.yml` to use the Redis service**
+
+Edit `config/cable.yml`:
+
+```yaml
+production:
+  adapter: redis
+  url: <%= ENV.fetch("REDIS_URL", "redis://localhost:6379/1") %>
+
+development:
+  adapter: redis
+  url: <%= ENV.fetch("REDIS_URL", "redis://localhost:6379/1") %>
+```
+
+---
+
+### 3. **Ensure `config/environments/production.rb` has Action Cable host and allowed origins set**
+
+```ruby
+config.action_cable.url = "wss://your-domain.com/cable"
+config.action_cable.allowed_request_origins = [ "https://your-domain.com", "http://localhost:3000" ]
+```
+
+> For local dev, `ws://localhost:3000/cable` works fine.
+
+---
+
+### 4. **Rebuild and start everything**
+
+```bash
+docker-compose down
+docker-compose up --build
+```
+
+---
+
+### ✅ Optional: Verify Redis is working
+
+Inside your `web` container:
+
+```bash
+docker-compose exec web rails c
+```
+
+Then:
+
+```ruby
+Redis.new(url: ENV['REDIS_URL']).ping
+# => "PONG"
+```
+
+---
+
+Let me know if you want to run Redis outside of Docker (e.g., on your host machine) instead.
+---------------------------------------------------------------------------------------------
+13. Great idea! Adding Redis is often useful for background jobs (e.g., with Sidekiq) or caching in Rails.
+
+Here's your **updated `docker-compose.yml`** with a `redis` service:
+
+```yaml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    image: chat-app:latest
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec puma -C config/puma.rb"
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
+    restart: always
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+```
+
+### Notes:
+- `REDIS_URL` is now passed to the `web` service so Rails/Sidekiq can connect.
+- Redis container is named `redis`, and the hostname `redis` is used in the URL thanks to Docker Compose's internal DNS.
+- Port `6379` is exposed, which is optional unless you want to connect to Redis from your host machine (e.g., for debugging).
+
+Let me know if you're using Sidekiq or ActionCable with Redis, or want Redis password protection added too.
+
+-------------------------------------------------------------------------------------
+14.Thanks for sharing that — from the logs, it looks like your web container (`chat-app-web-1`) is **crashing and restarting repeatedly**, and the main warning is this:
+
+```
+The "DB_USER" variable is not set. Defaulting to a blank string.
+```
+
+That’s a red flag. Your `docker-compose.yml` expects database-related environment variables, but they aren’t being passed — likely because your `.env` file is missing or doesn't have the correct values.
+
+---
+
+### ✅ Fix Steps
+
+1. **Create or update your `.env` file** in your project root (`~/chat-app/.env`), and define all the required environment variables:
+
+```env
+RAILS_ENV=production
+
+# Database connection details for your RDS
+DB_USER=your_rds_username
+DB_PASSWORD=your_rds_password
+DB_HOST=your-rds-endpoint.us-east-1.rds.amazonaws.com
+DB_PORT=5432
+DB_NAME=your_database_name
+
+# Optional: Redis config if needed
+REDIS_URL=redis://redis:6379/0
+```
+
+> Replace the values with your actual RDS settings. You can get the RDS endpoint from the AWS console.
+
+---
+
+2. **Verify `.env` is actually being picked up**  
+Double-check your `docker-compose.yml` contains this line under the `web` service:
+```yaml
+env_file:
+  - .env
+```
+
+---
+
+3. **Rebuild and restart your services**:
+
+```bash
+sudo docker-compose down
+sudo docker-compose up --build -d
+```
+
+Then run:
+```bash
+sudo docker-compose logs web
+```
+
+To see what’s happening in the web container. If there’s still a crash, paste that log here.
+
+---
+
+</details>
