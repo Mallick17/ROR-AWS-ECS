@@ -2,6 +2,36 @@
 Deploying a Ruby on Rails (RoR) application using Docker and Docker Compose involves creating three key files: `Dockerfile`, `docker-compose.yml`, and `.env`. These files work together to containerize the application, manage its dependencies, and configure the environment.
 
 ---
+## 🚀 Step-by-Step Deployment Guide (Rails + Docker + PostgreSQL AWS-RDS + Redis)
+
+### ✅ Prerequisites
+
+- Docker & Docker Compose installed
+- Rails app ready (you already have it)
+- `.env` file with production secrets
+- Puma configured in `config/puma.rb`
+
+---
+
+### 🗂 Step 1: Project Structure
+
+Make sure your Rails app folder looks like this:
+
+```
+chat-app/
+├── Dockerfile
+├── docker-compose.yml
+├── .env
+├── Gemfile
+├── Gemfile.lock
+├── config/
+│   └── database.yml
+│   └── puma.rb
+├── app/
+├── ...
+```
+
+---
 
 ## Create Dockerfile
 
