@@ -127,6 +127,7 @@ rails assets:precompile RAILS_ENV=production
 - Your Rails app ready to use a remote, scalable database.
 
 ---
+
 ## Step-by-Step Deployment Guide (Rails + Docker + PostgreSQL AWS-RDS + Redis)
 
 ### Prerequisites
