@@ -506,10 +506,6 @@ tmp/*
 
 ---
 
-
-
----
-
 ## 🧱 Step 7: Build and Run Containers
 ```bash
 sudo docker-compose up --build -d
