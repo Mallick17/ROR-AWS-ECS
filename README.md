@@ -1,4 +1,4 @@
-# Real Time Ruby on Rails Chat App Deployment using Docker
+# Real Time Ruby on Rails Chat App Deployment using Docker Compose
 Deploying a Ruby on Rails (RoR) application using Docker and Docker Compose involves creating three key files: `Dockerfile`, `docker-compose.yml`, and `.env`. These files work together to containerize the application, manage its dependencies, and configure the environment.
 
 ---
