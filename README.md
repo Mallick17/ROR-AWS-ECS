@@ -2,9 +2,9 @@
 Deploying a Ruby on Rails (RoR) application using Docker and Docker Compose involves creating three key files: `Dockerfile`, `docker-compose.yml`, and `.env`. These files work together to containerize the application, manage its dependencies, and configure the environment.
 
 ---
-## 🚀 Step-by-Step Deployment Guide (Rails + Docker + PostgreSQL AWS-RDS + Redis)
+## Step-by-Step Deployment Guide (Rails + Docker + PostgreSQL AWS-RDS + Redis)
 
-### ✅ Prerequisites
+### Prerequisites
 
 - Docker & Docker Compose installed
 - Rails app ready (you already have it)
@@ -13,7 +13,7 @@ Deploying a Ruby on Rails (RoR) application using Docker and Docker Compose invo
 
 ---
 
-### 🗂 Step 1: Project Structure
+## 🗂 Step 1: Project Structure
 
 Make sure your Rails app folder looks like this:
 
@@ -33,7 +33,7 @@ chat-app/
 
 ---
 
-## Create Dockerfile
+## ⚙️ Step 2: Create `Dockerfile`
 
 <details>
   <summary>Click to view Dockerfile</summary>
@@ -135,7 +135,7 @@ CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
 
 ---
 
-## Create `docker-compose.yml`
+## 🧱 Step 3: Create `docker-compose.yml`
 The `docker-compose.yml` file defines and orchestrates the services needed for the application, ensuring they communicate and start in the correct order. It uses version 3.8 of the Compose file format for modern features.
 
 <details>
@@ -224,7 +224,7 @@ services:
 
 ---
 
-## Create or Edit `.env` file
+## 🔐 Step 4: Create or Edit `.env` File
 The `.env` file contains environment variables that configure the RoR application and are used by Docker Compose. 
 
 <details>
@@ -267,7 +267,7 @@ SECRET_KEY_BASE=600f21de02355f788c759ff862a2cb22ba84ccbf072487992f4c2c49ae260f87
 
 ---
 
-## Edit `database.yml` file
+## ⚙️ Step 5: Configure `config/database.yml`
 
 <details>
   <summary>Click to view database.yml file</summary>
@@ -386,4 +386,4 @@ tmp/*
 
 ---
 
-
+## 🧱 Step 6: Build and Run Containers
