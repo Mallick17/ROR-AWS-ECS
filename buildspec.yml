@@ -5,7 +5,7 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin <your_account_id>.dkr.ecr.ap-south-1.amazonaws.com
-      - REPOSITORY_URI=<your_account_id>.dkr.ecr.ap-south-1.amazonaws.com/ror-chat-app
+      - REPOSITORY_URI=339713104321.dkr.ecr.ap-south-1.amazonaws.com/ror-chat-app
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
 
   build:
