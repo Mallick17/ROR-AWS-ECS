@@ -128,7 +128,7 @@ rails assets:precompile RAILS_ENV=production
 
 ---
 
-## Step-by-Step Deployment Guide (Rails + Docker + PostgreSQL AWS-RDS + Redis)
+## Step-by-Step Deployment Guide (Rails + Docker + PostgreSQL AWS-RDS + Redis + NGINX{Reverse Proxy})
 
 ### Prerequisites
 
