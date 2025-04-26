@@ -154,6 +154,8 @@ chat-app/
 │   └── database.yml
 │   └── puma.rb
 ├── app/
+├── nginx/
+│   └── default.conf
 ├── ...
 ```
 
