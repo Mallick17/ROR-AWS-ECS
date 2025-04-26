@@ -524,7 +524,7 @@ services:
 
 ---
 
-## 🧱 Step 5: Create `nginx/default.conf`
+## 🧱 Step 6: Create `nginx/default.conf`
 The `default.cong` file defines and orchestrates the nginx services as reverse proxy by listening to port `80` and transfering the request to port `3000`
 
 ```bash
@@ -554,7 +554,7 @@ server {
 
 </details>  
 
-## ⚙️ Step 6: Configure `config/database.yml`
+## ⚙️ Step 7: Configure `config/database.yml`
 
 <details>
   <summary>Click to view database.yml file</summary>
@@ -673,10 +673,12 @@ tmp/*
 
 ---
 
-## 🧱 Step 7: Build and Run Containers
+## 🧱 Step 8: Build and Run Containers
 ```bash
 sudo docker-compose up --build -d
 ```
+
+![image](https://github.com/user-attachments/assets/3a68eb86-70da-46e7-b163-207831eb541a)
 
 **Why?**  
 - `sudo docker-compose up`: Starts the services defined in docker-compose.yml.
@@ -788,9 +790,11 @@ cat production.log
   sudo netstat -tuln | grep 3000
   ```
 
+![image](https://github.com/user-attachments/assets/4ff07d3b-4990-41f7-a192-44f34c7bdf69)
+
 ---
 
-## Errors Faced while creating DOcker Images
+## Errors Faced while creating Docker Images
 <details>
   <summary>Click to view all the errors</summary>
 
