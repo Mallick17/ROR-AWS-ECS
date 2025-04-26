@@ -440,7 +440,6 @@ services:
   web:
     build: .
     image: chat-app:latest
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec puma -C config/puma.rb"
     volumes:
       - .:/app
     ports:
@@ -461,6 +460,17 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+    restart: always
+
 ```
 
 </details>
@@ -514,6 +524,35 @@ services:
 
 ---
 
+## 🧱 Step 5: Create `nginx/default.conf`
+The `default.cong` file defines and orchestrates the nginx services as reverse proxy by listening to port `80` and transfering the request to port `3000`
+
+```bash
+vi nginx/default.conf
+```
+
+<details>
+  <summary>Click to view default.conf file</summary>
+
+root@ip-172-31-12-255:~/chat-app/nginx# cat default.conf
+```conf
+upstream app {
+    server web:3000;
+}
+
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+</details>  
 
 ## ⚙️ Step 6: Configure `config/database.yml`
 
