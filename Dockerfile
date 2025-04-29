@@ -34,6 +34,14 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Expose port 80
 EXPOSE 80
 
-# Start Nginx (background) and then Puma (foreground)
-CMD nginx && bundle exec puma -C config/puma.rb
+# Copy entrypoint script
+COPY entrypoint.sh /usr/bin/entrypoint.sh
+RUN chmod +x /usr/bin/entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+
+# Remove this line — it's no longer needed # Start both Nginx and Puma
+# CMD ["sh", "-c", "service nginx start && bundle exec puma -C config/puma.rb"]
+
 
