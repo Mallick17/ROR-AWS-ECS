@@ -1,4 +1,4 @@
-FROM ruby:3.2.2
+FROM public.ecr.aws/docker/library/ruby:3.2.2
 
 # Set working directory
 WORKDIR /app
