@@ -551,7 +551,7 @@ This role is attached to the EC2 instances in the ECS cluster.
 
 ---
 
-## Auto Scaling Group (ASG) Configuration
+## Environment created by Auto Scaling Group (ASG) while configuring ECS Cluster Configuration
 
 ### ASG Details
 This ASG was automatically created with the ECS cluster.
@@ -639,7 +639,7 @@ Lifecycle hook: ecs‑managed‑draining‑termination‑hook (EC2_INSTANCE_TERM
 
 
 <details>
-  <summary>ECR Configuration</summary>
+  <summary>IAM Roles & Policies</summary>
   
 ## 8. IAM Roles & Policies
 
@@ -661,7 +661,7 @@ Condition: TagResource only on CreateCluster/RegisterContainerInstance
 </details>
 
 <details>
-  <summary>ECR Configuration</summary>
+  <summary>codebuild-ror-app-role</summary>
   
 ### codebuild-ror-app-role
 
