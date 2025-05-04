@@ -1,4 +1,29 @@
 # Deploying a Ruby on Rails (ROR) application using AWS services such as Auto Scaling Group (ASG), Launch Template, Amazon RDS, Amazon ECS (Cluster, Task Definition, Service), Amazon ECR, AWS CodeBuild, and IAM Roles. 
+
+---
+
+## 🗂 Project Structure
+- Make sure your Rails app folder looks like this:
+
+```
+chat-app/
+├── Dockerfile
+├── docker-compose.yml
+├── .env
+├── Gemfile
+├── Gemfile.lock
+├── config/
+│   ├── database.yml
+│   └── puma.rb
+├── buildspec.yml
+├── entrypoint.sh
+├── nginx.conf
+├── config.ru
+├── Rakefile
+└── render.yaml
+
+```
+
 ---
 
 ## RDS Configuration
