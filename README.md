@@ -539,19 +539,287 @@ Placement: AZ balanced spread
 ---
 
 ## IAM Roles
-
 ### ECS Role (ecsInstanceRole)
 This role is attached to the EC2 instances in the ECS cluster.
 
-- **Policies**:  
-  - **AmazonEC2ContainerRegistryReadOnly**  
-    *Grants read-only access to ECR repositories, allowing instances to pull Docker images.*  
-  - **AmazonEC2ContainerServiceforEC2Role**  
-    *Grants permissions for EC2 instances to register with ECS, pull images from ECR, and send logs to CloudWatch.*
+<details>
+  <summary>codebuild-ror-app-role</summary>
+  
+### codebuild-ror-app-role
+
+– Attached managed policies: AWSCodeBuildRole, etc., as required.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+
+    // --- ECR Permissions ---
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:GetRepositoryPolicy",
+        "ecr:DescribeRepositories",
+        "ecr:ListImages",
+        "ecr:DescribeImages",
+        "ecr:BatchGetImage",
+        "ecr:GetLifecyclePolicy",
+        "ecr:GetLifecyclePolicyPreview",
+        "ecr:ListTagsForResource",
+        "ecr:DescribeImageScanFindings",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "*"
+    },
+
+    // --- CloudWatch Logs Full Access ---
+    {
+      "Sid": "CloudWatchLogsFullAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:*",
+        "cloudwatch:GenerateQuery"
+      ],
+      "Resource": "*"
+    },
+
+    // --- Specific CloudWatch Logs and CodeBuild Reporting ---
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:ap-south-1:339713104321:log-group:/aws/codebuild/mallow-ecs-ror-final-codebuild",
+        "arn:aws:logs:ap-south-1:339713104321:log-group:/aws/codebuild/mallow-ecs-ror-final-codebuild:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "codebuild:CreateReportGroup",
+        "codebuild:CreateReport",
+        "codebuild:UpdateReport",
+        "codebuild:BatchPutTestCases",
+        "codebuild:BatchPutCodeCoverages"
+      ],
+      "Resource": [
+        "arn:aws:codebuild:ap-south-1:339713104321:report-group/mallow-ecs-ror-final-codebuild-*"
+      ]
+    },
+
+    // --- S3 Artifact and Pipeline Bucket Access ---
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:GetObjectVersion",
+        "s3:GetBucketAcl",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:aws:s3:::codepipeline-ap-south-1-*",
+        "arn:aws:s3:::codepipelinestartertempla-codepipelineartifactsbuc-lkksehyipedk/*"
+      ]
+    },
+
+    // --- CodeStar / CodeConnections Access (GitHub Connections) ---
+    {
+      "Effect": "Allow",
+      "Action": [
+        "codestar-connections:GetConnectionToken",
+        "codestar-connections:GetConnection",
+        "codeconnections:GetConnectionToken",
+        "codeconnections:GetConnection",
+        "codeconnections:UseConnection"
+      ],
+      "Resource": [
+        "arn:aws:codestar-connections:ap-south-1:339713104321:connection/e78bca79-a1be-4f00-9f47-58e0d3058c09",
+        "arn:aws:codeconnections:ap-south-1:339713104321:connection/e78bca79-a1be-4f00-9f47-58e0d3058c09"
+      ]
+    },
+
+    // --- Secrets Manager, Lambda, CloudFormation, KMS, etc. ---
+    {
+      "Sid": "BasePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:*",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStacks",
+        "cloudformation:ExecuteChangeSet",
+        "docdb-elastic:GetCluster",
+        "docdb-elastic:ListClusters",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs",
+        "kms:DescribeKey",
+        "kms:ListAliases",
+        "kms:ListKeys",
+        "lambda:ListFunctions",
+        "rds:DescribeDBClusters",
+        "rds:DescribeDBInstances",
+        "redshift:DescribeClusters",
+        "redshift-serverless:ListWorkgroups",
+        "redshift-serverless:GetNamespace",
+        "tag:GetResources"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:AddPermission",
+        "lambda:CreateFunction",
+        "lambda:GetFunction",
+        "lambda:InvokeFunction",
+        "lambda:UpdateFunctionConfiguration"
+      ],
+      "Resource": "arn:aws:lambda:*:*:function:SecretsManager*"
+    },
+    {
+      "Sid": "SARPermissions",
+      "Effect": "Allow",
+      "Action": [
+        "serverlessrepo:CreateCloudFormationChangeSet",
+        "serverlessrepo:GetApplication"
+      ],
+      "Resource": "arn:aws:serverlessrepo:*:*:applications/SecretsManager*"
+    },
+    {
+      "Sid": "S3PermissionsForSAR",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::awsserverlessrepo-changesets*",
+        "arn:aws:s3:::secrets-manager-rotation-apps-*/*"
+      ]
+    }
+
+  ]
+}
+```
 
 ---
 
-## Environment created by Auto Scaling Group (ASG) while configuring ECS Cluster Configuration
+</details>
+
+<details>
+  <summary>ecsInstanceRole</summary>
+
+### ECS Role (ecsInstanceRole) 
+This role is attached to the EC2 instances in the ECS cluster, granting permissions to interact with ECS and other AWS services.
+
+#### Policies Attached:
+- **Policies**:  
+  - **AmazonEC2ContainerRegistryReadOnly**  
+    *Grants read-only access to ECR repositories, allowing instances to pull Docker images.*
+    
+1. **AmazonEC2ContainerRegistryReadOnly**  
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Effect": "Allow",
+               "Action": [
+                   "ecr:GetAuthorizationToken",
+                   "ecr:BatchCheckLayerAvailability",
+                   "ecr:GetDownloadUrlForLayer",
+                   "ecr:GetRepositoryPolicy",
+                   "ecr:DescribeRepositories",
+                   "ecr:ListImages",
+                   "ecr:DescribeImages",
+                   "ecr:BatchGetImage",
+                   "ecr:GetLifecyclePolicy",
+                   "ecr:GetLifecyclePolicyPreview",
+                   "ecr:ListTagsForResource",
+                   "ecr:DescribeImageScanFindings"
+               ],
+               "Resource": "*"
+           }
+       ]
+   }
+   ```  
+   *Grants read-only access to ECR repositories, allowing instances to pull Docker images.*
+
+</details>
+
+<details>
+  <summary>AmazonEC2ContainerServiceforEC2Role</summary>
+
+  - **AmazonEC2ContainerServiceforEC2Role**  
+    *Grants permissions for EC2 instances to register with ECS, pull images from ECR, and send logs to CloudWatch.*
+
+2. **AmazonEC2ContainerServiceforEC2Role**  
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Effect": "Allow",
+               "Action": [
+                   "ec2:DescribeTags",
+                   "ecs:CreateCluster",
+                   "ecs:DeregisterContainerInstance",
+                   "ecs:DiscoverPollEndpoint",
+                   "ecs:Poll",
+                   "ecs:RegisterContainerInstance",
+                   "ecs:StartTelemetrySession",
+                   "ecs:UpdateContainerInstancesState",
+                   "ecs:Submit*",
+                   "ecr:GetAuthorizationToken",
+                   "ecr:BatchCheckLayerAvailability",
+                   "ecr:GetDownloadUrlForLayer",
+                   "ecr:BatchGetImage",
+                   "logs:CreateLogStream",
+                   "logs:PutLogEvents"
+               ],
+               "Resource": "*"
+           },
+           {
+               "Effect": "Allow",
+               "Action": "ecs:TagResource",
+               "Resource": "*",
+               "Condition": {
+                   "StringEquals": {
+                       "ecs:CreateAction": [
+                           "CreateCluster",
+                           "RegisterContainerInstance"
+                       ]
+                   }
+               }
+           }
+       ]
+   }
+   ```  
+   *Grants permissions for EC2 instances to register with ECS, pull images from ECR, and send logs to CloudWatch.*
+
+---
+
+</details>
+
+
+
+
+
+---
+
+## Environment created by Auto Scaling Group (ASG) while configuring ECS Cluster Configuration (By Default)
 
 ### ASG Details
 This ASG was automatically created with the ECS cluster.
@@ -597,19 +865,7 @@ This ASG was automatically created with the ECS cluster.
     *Manages instance termination gracefully.*
 
 ---
-
-
-
-
----
-
-
-
----
-
-
-
-
+## Launch Template Environment created by Auto Scaling Group (ASG) while configuring ECS Cluster Configuration (By Default)
 
 <details>
   <summary>Launch Template</summary>
@@ -638,36 +894,7 @@ Lifecycle hook: ecs‑managed‑draining‑termination‑hook (EC2_INSTANCE_TERM
 
 
 
-<details>
-  <summary>IAM Roles & Policies</summary>
-  
-## 8. IAM Roles & Policies
 
-### ecsInstanceRole
 
-```json
-Policy: AmazonEC2ContainerRegistryReadOnly
-Actions: ecr:GetAuthorizationToken, BatchCheckLayerAvailability, GetDownloadUrlForLayer, …
-Resource: *
-```
 
-```json
-Policy: AmazonEC2ContainerServiceforEC2Role
-Actions: ec2:DescribeTags, ecs:CreateCluster, ecs:RegisterContainerInstance, ecr:GetAuthorizationToken, logs:CreateLogStream, …
-Resource: *
-Condition: TagResource only on CreateCluster/RegisterContainerInstance
-```
-
-</details>
-
-<details>
-  <summary>codebuild-ror-app-role</summary>
-  
-### codebuild-ror-app-role
-
-– Attached managed policies: AWSCodeBuildRole, etc., as required.
-
----
-
-</details>
 
