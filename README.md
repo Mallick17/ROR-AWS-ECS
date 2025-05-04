@@ -539,8 +539,6 @@ Placement: AZ balanced spread
 ---
 
 ## IAM Roles
-### ECS Role (ecsInstanceRole)
-This role is attached to the EC2 instances in the ECS cluster.
 
 <details>
   <summary>codebuild-ror-app-role</summary>
@@ -718,11 +716,11 @@ This role is attached to the EC2 instances in the ECS cluster.
 
 </details>
 
-<details>
-  <summary>ecsInstanceRole</summary>
-
 ### ECS Role (ecsInstanceRole) 
 This role is attached to the EC2 instances in the ECS cluster, granting permissions to interact with ECS and other AWS services.
+
+<details>
+  <summary>ecsInstanceRole</summary>
 
 #### Policies Attached:
 - **Policies**:  
